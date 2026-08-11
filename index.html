@@ -1,0 +1,1182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>THE GRIND LOG</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+  :root{
+    --bg:#0f1620;
+    --surface:#16212c;
+    --surface2:#1c2a37;
+    --line:#2c3f4d;
+    --ink:#dce9ec;
+    --ink-dim:#7d94a3;
+    --accent:#35c9c2;
+    --accent-dim:rgba(53,201,194,0.16);
+    --warn:#d9a54c;
+    --warn-dim:rgba(217,165,76,0.16);
+    --miss:#7a5566;
+    --miss-dim:rgba(122,85,102,0.18);
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+    line-height:1.45;
+    min-height:100vh;
+    background-image:
+      radial-gradient(ellipse at top left, rgba(53,201,194,0.06), transparent 55%),
+      radial-gradient(ellipse at bottom right, rgba(91,143,217,0.06), transparent 55%);
+  }
+  .wrap{max-width:1000px;margin:0 auto;padding:28px 20px 80px;}
+
+  /* ---------- Header ---------- */
+  header{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px;padding-bottom:18px;border-bottom:1px solid var(--line);}
+  .brand h1{
+    font-family:'Oswald',sans-serif;
+    font-weight:700;
+    font-size:clamp(28px,5vw,42px);
+    letter-spacing:0.5px;
+    text-transform:uppercase;
+    margin:0;
+  }
+  .brand h1 span{color:var(--accent);}
+  .brand p{margin:4px 0 0;color:var(--ink-dim);font-size:13px;}
+  .today-pill{
+    font-family:'JetBrains Mono',monospace;
+    font-size:13px;
+    color:var(--ink-dim);
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:999px;
+    padding:7px 14px;
+    white-space:nowrap;
+  }
+
+  /* ---------- Auth gate ---------- */
+  .auth-gate{display:flex;justify-content:center;padding:40px 0;}
+  .auth-card{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:28px 26px;max-width:360px;width:100%;
+  }
+  .auth-card h2{font-family:'Oswald',sans-serif;font-size:20px;text-transform:uppercase;margin:0 0 8px;letter-spacing:0.5px;}
+  .auth-sub{color:var(--ink-dim);font-size:13px;margin:0 0 18px;line-height:1.5;}
+  .auth-card label.field-label{margin-top:0;}
+  .auth-field{margin-bottom:14px;}
+  .auth-msg{font-size:12.5px;color:var(--warn);min-height:16px;margin-top:4px;}
+  .auth-msg:not(:empty){
+    background:var(--warn-dim);border:1px solid var(--warn);border-radius:8px;
+    padding:10px 12px;margin-top:10px;font-weight:600;line-height:1.4;
+  }
+  .auth-note{font-size:11px;color:var(--ink-dim);margin-top:16px;padding-top:14px;border-top:1px solid var(--line);line-height:1.5;}
+
+  /* ---------- Session bar ---------- */
+  .session-bar{
+    display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;
+    margin-bottom:18px;font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--ink-dim);
+  }
+  .session-bar b{color:var(--ink);}
+
+  /* ---------- Rules ---------- */
+  .rules{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:22px;overflow:hidden;}
+  .rules-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;user-select:none;}
+  .rules-head h2{font-family:'Oswald',sans-serif;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;margin:0;color:var(--ink-dim);}
+  .rules-head .chev{font-family:'JetBrains Mono',monospace;color:var(--ink-dim);transition:transform .2s;}
+  .rules-body{padding:0 16px 16px;display:none;}
+  .rules.open .rules-body{display:block;}
+  .rules.open .chev{transform:rotate(180deg);}
+  .rules-body ul{margin:0;padding-left:0;list-style:none;display:grid;gap:8px;}
+  .rules-body li{
+    font-size:13.5px;color:var(--ink);padding-left:20px;position:relative;
+  }
+  .rules-body li::before{content:"—";position:absolute;left:0;color:var(--accent);}
+  .rules-body .example{font-family:'JetBrains Mono',monospace;color:var(--warn);}
+
+  /* ---------- Overview lanes ---------- */
+  .overview{display:grid;grid-template-columns:repeat(auto-fit, minmax(180px,1fr));gap:12px;margin-bottom:26px;}
+  @media(max-width:680px){.overview{grid-template-columns:1fr;}}
+  .mini-lane{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:14px 16px;cursor:pointer;border-left:3px solid var(--line);transition:border-color .15s, background .15s;
+  }
+  .mini-lane:hover{background:var(--surface2);}
+  .mini-lane.active{border-color:var(--lane-color);background:var(--surface2);}
+  .mini-lane .name{font-family:'Oswald',sans-serif;font-weight:600;font-size:17px;text-transform:uppercase;letter-spacing:0.5px;display:flex;align-items:center;gap:8px;}
+  .mini-lane .you-tag{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--accent);border:1px solid var(--accent);border-radius:4px;padding:1px 5px;letter-spacing:0.5px;}
+  .mini-lane .dot{width:9px;height:9px;border-radius:50%;background:var(--ink-dim);flex:none;}
+  .dot.logged{background:var(--accent);box-shadow:0 0 0 3px var(--accent-dim);}
+  .dot.skip{background:var(--warn);box-shadow:0 0 0 3px var(--warn-dim);}
+  .dot.pending{background:var(--ink-dim);}
+  .mini-lane .stats{display:flex;gap:16px;margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink-dim);}
+  .mini-lane .stats b{color:var(--ink);font-size:14px;}
+
+  /* ---------- Lane detail ---------- */
+  .lane-panel{background:var(--surface);border:1px solid var(--line);border-top:3px solid var(--lane-color);border-radius:var(--radius);padding:20px;margin-bottom:26px;}
+  .lane-panel .lp-head{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:10px;margin-bottom:14px;}
+  .lane-panel .lp-head h3{font-family:'Oswald',sans-serif;font-size:22px;text-transform:uppercase;margin:0;color:var(--lane-color);}
+  .read-only-note{font-size:12px;color:var(--ink-dim);margin-bottom:14px;font-family:'JetBrains Mono',monospace;}
+  .week-strip{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap;}
+  .day-detail{
+    background:var(--surface2);border:1px solid var(--line);border-radius:var(--radius);
+    padding:14px 16px;margin-bottom:16px;
+  }
+  .day-detail-head{
+    display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;
+    font-family:'Oswald',sans-serif;font-size:14px;text-transform:uppercase;letter-spacing:0.5px;color:var(--ink);
+  }
+  .day-cell{
+    flex:1;min-width:38px;text-align:center;padding:8px 2px;border-radius:8px;background:var(--surface2);
+    border:1px solid var(--line);font-family:'JetBrains Mono',monospace;cursor:pointer;transition:border-color .15s;
+  }
+  .day-cell:hover{border-color:var(--ink-dim);}
+  .day-cell.date-selected{border-color:var(--accent);}
+  .day-cell .wd{display:block;font-size:10px;color:var(--ink-dim);letter-spacing:1px;}
+  .day-cell .mk{display:block;font-size:15px;margin-top:4px;font-weight:700;}
+  .day-cell.today{outline:1px dashed var(--ink-dim);}
+  .day-cell.st-logged .mk{color:var(--accent);}
+  .day-cell.st-skip .mk{color:var(--warn);}
+  .day-cell.st-miss .mk{color:var(--miss);}
+  .day-cell.st-future .mk{color:var(--ink-dim);}
+
+  .stamp{
+    display:inline-block;font-family:'Oswald',sans-serif;font-weight:700;letter-spacing:2px;text-transform:uppercase;
+    font-size:12px;color:var(--accent);border:2px solid var(--accent);border-radius:3px 10px 4px 9px;
+    padding:4px 10px;transform:rotate(-3deg);background:var(--accent-dim);
+  }
+  .stamp.warn{color:var(--warn);border-color:var(--warn);background:var(--warn-dim);}
+
+  .exercise-pills{display:flex;gap:10px;flex-wrap:wrap;}
+  .exercise-pill{
+    background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-family:'JetBrains Mono',monospace;font-size:13px;
+  }
+  .exercise-pill .lab{display:block;color:var(--ink-dim);font-size:10px;letter-spacing:1px;text-transform:uppercase;margin-bottom:2px;}
+  .exercise-pill .val{font-size:15px;font-weight:700;}
+  .note-line{color:var(--ink-dim);font-size:12.5px;margin-top:10px;}
+
+  .btn{
+    font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500;letter-spacing:0.5px;
+    background:var(--surface2);color:var(--ink);border:1px solid var(--line);border-radius:7px;
+    padding:9px 16px;cursor:pointer;transition:border-color .15s, color .15s;
+  }
+  .btn:hover{border-color:var(--ink-dim);}
+  .btn.primary{background:var(--accent);color:#07201d;border-color:var(--accent);font-weight:700;}
+  .btn.primary:hover{filter:brightness(1.08);}
+  .btn.ghost{background:transparent;}
+  .btn.small{padding:6px 12px;font-size:12px;}
+  .btn.toggle-active{border-color:var(--warn);color:var(--warn);}
+  .btn.full{width:100%;}
+
+  form.entry-form{margin-top:10px;}
+  .mode-toggle{display:flex;gap:8px;margin-bottom:16px;}
+  .ex-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px;}
+  @media(max-width:680px){.ex-grid{grid-template-columns:1fr;}}
+  .ex-field{background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:12px;}
+  .ex-field .title{font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:1px;text-transform:uppercase;color:var(--ink-dim);margin-bottom:8px;}
+  .ex-field .row{display:flex;gap:8px;align-items:center;}
+  .ex-field input[type=number]{
+    width:100%;background:var(--bg);border:1px solid var(--line);color:var(--ink);
+    font-family:'JetBrains Mono',monospace;font-size:15px;border-radius:6px;padding:7px 8px;
+  }
+  .ex-field .x{color:var(--ink-dim);font-family:'JetBrains Mono',monospace;}
+  .ex-field .cap{font-size:10px;color:var(--ink-dim);margin-top:6px;}
+  textarea, input[type=text], input[type=password]{
+    width:100%;background:var(--surface2);border:1px solid var(--line);color:var(--ink);
+    font-family:inherit;font-size:13.5px;border-radius:6px;padding:9px 10px;resize:vertical;
+  }
+  label.field-label{display:block;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--ink-dim);margin-bottom:6px;}
+  .form-actions{display:flex;gap:10px;margin-top:14px;align-items:center;}
+  .form-msg{font-size:12.5px;color:var(--warn);}
+
+  /* ---------- History ---------- */
+  .history{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px;}
+  .history-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;}
+  .history-head h2{font-family:'Oswald',sans-serif;font-size:16px;letter-spacing:1px;text-transform:uppercase;margin:0;color:var(--ink-dim);}
+  .filters{display:flex;gap:6px;flex-wrap:wrap;}
+  .history-controls{display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:flex-end;}
+  .date-filter{display:flex;gap:6px;align-items:center;}
+  .date-filter input[type=date]{
+    background:var(--surface2);border:1px solid var(--line);color:var(--ink);
+    font-family:'JetBrains Mono',monospace;font-size:12px;border-radius:7px;padding:7px 8px;
+    width:auto;
+  }
+  .filters button.active{border-color:var(--accent);color:var(--accent);}
+  table{width:100%;border-collapse:collapse;font-family:'JetBrains Mono',monospace;font-size:12.5px;}
+  th{text-align:left;color:var(--ink-dim);font-weight:500;padding:8px 10px;border-bottom:1px solid var(--line);text-transform:uppercase;font-size:10.5px;letter-spacing:0.5px;}
+  td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top;}
+  tr:last-child td{border-bottom:none;}
+  .table-scroll{overflow-x:auto;}
+  .who-tag{display:inline-flex;align-items:center;gap:6px;font-weight:700;}
+  .who-tag .sw{width:7px;height:7px;border-radius:50%;}
+  .empty-row{color:var(--ink-dim);text-align:center;padding:26px 10px;}
+  .status-badge{font-size:10.5px;padding:2px 7px;border-radius:5px;text-transform:uppercase;letter-spacing:0.5px;}
+  .status-badge.logged{background:var(--accent-dim);color:var(--accent);}
+  .status-badge.skip{background:var(--warn-dim);color:var(--warn);}
+
+  footer{text-align:center;color:var(--ink-dim);font-size:11.5px;margin-top:28px;font-family:'JetBrains Mono',monospace;}
+  .toast{
+    position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+    background:var(--surface2);border:1px solid var(--accent);color:var(--ink);
+    padding:10px 18px;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:13px;
+    opacity:0;pointer-events:none;transition:opacity .25s, transform .25s;z-index:50;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px);}
+  .loading-text{color:var(--ink-dim);font-family:'JetBrains Mono',monospace;font-size:13px;text-align:center;padding:30px 0;}
+
+  .add-ex-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  .add-ex-row input[type=text]{flex:1;min-width:140px;}
+  .add-ex-row input[type=number]{width:70px;background:var(--surface2);border:1px solid var(--line);color:var(--ink);font-family:'JetBrains Mono',monospace;border-radius:6px;padding:8px;}
+  .add-ex-note{font-size:11.5px;color:var(--ink-dim);margin-top:8px;}
+
+  .ex-manager{margin-bottom:16px;}
+  .ex-manager-label{font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--ink-dim);margin-bottom:8px;}
+  .ex-chip-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  .ex-chip{
+    display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--line);
+    border-radius:999px;padding:6px 6px 6px 12px;font-family:'JetBrains Mono',monospace;font-size:12.5px;
+  }
+  .ex-chip.static{padding:6px 12px;}
+  .ex-chip button{
+    background:none;border:none;color:var(--ink-dim);cursor:pointer;font-size:14px;line-height:1;
+    width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  }
+  .ex-chip button:hover:not(:disabled){color:var(--warn);background:var(--warn-dim);}
+  .ex-chip button:disabled{opacity:0.3;cursor:not-allowed;}
+
+  .fatal-error{
+    display:none;background:#3a1414;border:2px solid #e04b3a;color:#ffd8d0;
+    border-radius:10px;padding:14px 16px;margin-bottom:16px;font-family:'JetBrains Mono',monospace;
+    font-size:12.5px;line-height:1.5;white-space:pre-wrap;word-break:break-word;
+  }
+  .fatal-error.show{display:block;}
+  .diag-line{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--ink-dim);text-align:center;margin-top:10px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="fatal-error" id="fatalError"></div>
+
+  <header>
+    <div class="brand">
+      <h1>THE GRIND<span>.</span>LOG</h1>
+      <p>Pushups &middot; Squats &middot; Pullups — nightly, together, no excuses that count as reps.</p>
+    </div>
+    <div class="today-pill" id="todayPill">—</div>
+  </header>
+
+  <div class="auth-gate" id="authGate">
+    <div class="auth-card">
+      <h2>Who's this?</h2>
+      <p class="auth-sub">Type your name. A new name starts a fresh account with its own streak, skips, and exercises. Typing an existing name (matching case) opens that same account.</p>
+      <div id="authForm">
+        <div class="auth-field">
+          <label class="field-label" for="authName">Name</label>
+          <input type="text" id="authName" placeholder="Your name" autocomplete="off">
+        </div>
+        <button type="button" class="btn primary full" id="authSubmitBtn">Enter</button>
+        <div class="auth-msg" id="authMsg"></div>
+      </div>
+      <div class="auth-note">No password — whoever types a name gets that account, so this only works if everyone plays fair. Names are case-sensitive: "Rami" and "rami" would be two different accounts.</div>
+      <div class="diag-line" id="diagLine">loading…</div>
+    </div>
+  </div>
+
+  <div id="appMain" style="display:none;">
+
+    <div class="session-bar">
+      <span>Logged in as <b id="sessionName"></b></span>
+      <button type="button" class="btn small ghost" id="logoutBtn">Log out</button>
+    </div>
+
+    <div class="rules" id="rulesBox">
+      <div class="rules-head" id="rulesToggle">
+        <h2>Rules of the log</h2>
+        <span class="chev">▾</span>
+      </div>
+      <div class="rules-body">
+        <ul>
+          <li>Format is <span class="example">reps x sets</span> (example: <span class="example">30 x 10</span>)</li>
+          <li>2 skips per week max. Preferably none.</li>
+          <li>Check in and log your work every night.</li>
+          <li>10 sets max for any exercise.</li>
+          <li>6 sets max for pullups.</li>
+          <li>All sets of an exercise use the same rep count. Add a rep whenever you feel ready.</li>
+          <li>Not a competition &mdash; the number is between you and you. The sets are what keep everyone honest.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="overview" id="overview">
+      <div class="loading-text">Loading the log…</div>
+    </div>
+
+    <div class="lane-panel" id="lanePanel" style="display:none;"></div>
+
+    <div class="history">
+      <div class="history-head">
+        <h2>Full log</h2>
+        <div class="history-controls">
+          <div class="filters" id="filters"></div>
+          <div class="date-filter">
+            <input type="date" id="dateFilter">
+            <button type="button" class="btn small ghost" id="clearDateBtn" style="display:none;">Clear date</button>
+          </div>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead id="historyHead">
+            <tr><th>Date</th><th>Who</th><th>Note / Excuse</th></tr>
+          </thead>
+          <tbody id="historyBody">
+            <tr><td class="empty-row">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <footer>Shared log — anything logged here is visible to everyone signed in to this page.</footer>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  function showFatalError(text){
+    try{
+      const el = document.getElementById('fatalError');
+      if(el){
+        el.textContent = 'Something broke: ' + text + '\n\nTake a screenshot of this box and send it back.';
+        el.classList.add('show');
+      }
+    }catch(e){ /* if even this fails, there's nothing more we can do */ }
+  }
+  window.addEventListener('error', function(e){
+    showFatalError((e && e.message) ? e.message : 'unknown script error');
+  });
+  window.addEventListener('unhandledrejection', function(e){
+    const reason = e && e.reason ? (e.reason.message || String(e.reason)) : 'unknown promise rejection';
+    showFatalError(reason);
+  });
+  const firebaseConfig = {
+    apiKey: "AIzaSyCU5tcE6X28qgiMCTvYqAKPzdLd83DCMRk",
+    authDomain: "grind-log-dd086.firebaseapp.com",
+    projectId: "grind-log-dd086",
+    storageBucket: "grind-log-dd086.firebasestorage.app",
+    messagingSenderId: "1038876959355",
+    appId: "1:1038876959355:web:fc14ad0d960101bbabf8de"
+  };
+  let db = null;
+  try{
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+  }catch(e){
+    showFatalError('Firebase failed to start: ' + (e && e.message ? e.message : String(e)));
+  }
+  const ACCOUNTS_COL = 'accounts';
+  const LOGS_COL = 'logs';
+  const SESSION_KEY = 'grindlog_session_name';
+
+  const DEFAULT_COLORS = ['#3ec9b0','#5b8fd9','#9b8cd9'];
+  const EXTRA_PALETTE = ['#4fd1c5','#6aa8e0','#a48ce0','#5fb8b0','#7d9fd9','#8fd1e0','#c98bd9'];
+  const DEFAULT_EXERCISES = [
+    {key:'pushups', label:'Pushups', maxSets:10},
+    {key:'squats', label:'Squats', maxSets:10},
+    {key:'pullups', label:'Pullups', maxSets:6},
+  ];
+
+  let accounts = [];      // [{name, color}]
+  let sessionUser = null; // name of the logged-in account; persisted in localStorage across visits
+  let dataMap = {};       // { person: { exercises: [{key,label,maxSets}], entries: { 'YYYY-MM-DD': entry } } }
+  let activePerson = null;
+  let historyFilter = 'All';
+  let dateFilter = '';
+  let selectedDayKey = null;
+  let editingToday = false;
+  let addingExercise = false;
+  let accountsUnsub = null;
+  let logUnsubs = {};
+
+  function peopleNames(){ return accounts.map(a=>a.name); }
+  function colorFor(name){ const a = accounts.find(a=>a.name===name); return a ? a.color : 'var(--ink-dim)'; }
+  function isOwner(){ return activePerson === sessionUser; }
+
+  // ---------- date helpers ----------
+  function pad(n){ return n<10 ? '0'+n : ''+n; }
+  function toKey(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+  function todayKey(){ return toKey(new Date()); }
+  function addDays(d, n){ const c = new Date(d); c.setDate(c.getDate()+n); return c; }
+  function getMonday(d){ const c = new Date(d); const day = c.getDay(); const diff = (day===0? -6 : 1) - day; return addDays(c, diff); }
+  function fmtNice(d){
+    return d.toLocaleDateString(undefined, {weekday:'short', month:'short', day:'numeric'});
+  }
+  function fmtKeyNice(key){
+    const [y,m,dd] = key.split('-').map(Number);
+    return fmtNice(new Date(y, m-1, dd));
+  }
+
+  // ---------- accounts storage ----------
+  async function loadAllAccounts(){
+    try{
+      const snap = await db.collection(ACCOUNTS_COL).get();
+      return snap.docs.map(d=>d.data());
+    }catch(e){
+      return [];
+    }
+  }
+  function nextColor(){
+    const i = accounts.length;
+    if(i < DEFAULT_COLORS.length) return DEFAULT_COLORS[i];
+    return EXTRA_PALETTE[(i - DEFAULT_COLORS.length) % EXTRA_PALETTE.length];
+  }
+
+  async function attemptAuth(name){
+    try{
+      const label = name.trim();
+      if(!label) return {ok:false, msg:'Enter your name.'};
+
+      // Firestore doc IDs are exact strings, so this lookup is naturally
+      // case-sensitive — "Rami" and "rami" are different accounts.
+      const existingSnap = await db.collection(ACCOUNTS_COL).doc(label).get();
+      if(existingSnap.exists){
+        return {ok:true, name: existingSnap.data().name, isNew:false};
+      }
+
+      const account = { name: label, color: nextColor(), createdAt: Date.now() };
+      try{
+        await db.collection(ACCOUNTS_COL).doc(label).set(account);
+        await db.collection(LOGS_COL).doc(label).set(normalize(null));
+        return {ok:true, name: label, isNew:true};
+      }catch(e){
+        return {ok:false, msg:'Could not create the account: ' + (e && e.message ? e.message : String(e))};
+      }
+    }catch(outerErr){
+      return {ok:false, msg:'Something went wrong: ' + (outerErr && outerErr.message ? outerErr.message : String(outerErr))};
+    }
+  }
+
+  // ---------- per-person storage ----------
+  function normalize(raw){
+    const exercises = (raw && Array.isArray(raw.exercises) && raw.exercises.length) ? raw.exercises : DEFAULT_EXERCISES.slice();
+    const entries = (raw && raw.entries && typeof raw.entries === 'object') ? raw.entries : {};
+    return { exercises, entries };
+  }
+  async function loadPerson(person){
+    try{
+      const snap = await db.collection(LOGS_COL).doc(person).get();
+      return normalize(snap.exists ? snap.data() : null);
+    }catch(e){
+      return normalize(null);
+    }
+  }
+  async function savePerson(person, obj){
+    await db.collection(LOGS_COL).doc(person).set(obj);
+  }
+
+  // ---------- live sync (real-time, replaces polling) ----------
+  function ensureLogSubscription(name){
+    if(logUnsubs[name]) return;
+    logUnsubs[name] = db.collection(LOGS_COL).doc(name).onSnapshot(
+      snap=>{
+        dataMap[name] = normalize(snap.exists ? snap.data() : null);
+        renderOverview();
+        renderHistory();
+        if(name === activePerson){
+          const formOpen = editingToday || addingExercise || document.getElementById('entryForm');
+          if(!formOpen) renderLanePanel();
+        }
+      },
+      err=>{ showFatalError('log sync (' + name + '): ' + (err && err.message ? err.message : String(err))); }
+    );
+  }
+  function startLiveSync(){
+    if(accountsUnsub) return;
+    accountsUnsub = db.collection(ACCOUNTS_COL).onSnapshot(
+      snap=>{
+        accounts = snap.docs.map(d=>d.data());
+        accounts.forEach(a=> ensureLogSubscription(a.name));
+        renderOverview();
+        renderFilters();
+        renderHistory();
+      },
+      err=>{ showFatalError('accounts sync: ' + (err && err.message ? err.message : String(err))); }
+    );
+  }
+  function stopLiveSync(){
+    if(accountsUnsub){ accountsUnsub(); accountsUnsub = null; }
+    Object.keys(logUnsubs).forEach(name=>{ logUnsubs[name](); });
+    logUnsubs = {};
+  }
+
+  // one-time full fetch so the first render after login isn't empty while
+  // the live listeners above are still spinning up
+  async function primeData(){
+    accounts = await loadAllAccounts();
+    const names = peopleNames();
+    const results = await Promise.all(names.map(loadPerson));
+    names.forEach((p,i)=> dataMap[p] = results[i]);
+  }
+
+  async function loginAs(name, isNew){
+    sessionUser = name;
+    activePerson = name;
+    try{ localStorage.setItem(SESSION_KEY, name); }catch(e){ /* private browsing etc — non-critical */ }
+    showAppMain();
+    await primeData();
+    renderAll();
+    startLiveSync();
+    showToast(isNew ? 'Welcome, ' + name + '. Account created.' : 'Welcome back, ' + name + '.');
+  }
+
+  function slugify(existingList, name){
+    let key = name.trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-+|-+$)/g,'');
+    if(!key) key = 'exercise';
+    let unique = key, n = 2;
+    while(existingList.some(ex=>ex.key===unique)){ unique = key+'-'+n; n++; }
+    return unique;
+  }
+  async function addExerciseFor(person, name, maxSets){
+    const label = name.trim();
+    const state = dataMap[person];
+    if(!label) return {ok:false, msg:'Give the exercise a name.'};
+    if(state.exercises.some(ex=>ex.label.toLowerCase()===label.toLowerCase())){
+      return {ok:false, msg: person + ' is already tracking that one.'};
+    }
+    const cap = Math.max(1, Math.min(20, parseInt(maxSets,10) || 10));
+    const newEx = { key: slugify(state.exercises, label), label, maxSets: cap };
+    state.exercises.push(newEx);
+    try{
+      await savePerson(person, state);
+      return {ok:true};
+    }catch(e){
+      state.exercises.pop();
+      return {ok:false, msg:'Could not save — try again.'};
+    }
+  }
+  async function removeExerciseFor(person, key){
+    const state = dataMap[person];
+    if(state.exercises.length <= 1) return {ok:false, msg:'Keep at least one exercise.'};
+    const idx = state.exercises.findIndex(ex=>ex.key===key);
+    if(idx === -1) return {ok:false, msg:'Not found.'};
+    const removed = state.exercises.splice(idx,1)[0];
+    try{
+      await savePerson(person, state);
+      return {ok:true};
+    }catch(e){
+      state.exercises.splice(idx,0,removed);
+      return {ok:false, msg:'Could not save — try again.'};
+    }
+  }
+
+  // ---------- derived stats ----------
+  function computeStreak(entries){
+    let streak = 0;
+    let cursor = new Date();
+    const tKey = todayKey();
+    if(!(entries[tKey] && entries[tKey].status === 'logged')){
+      cursor = addDays(cursor, -1);
+    }
+    while(true){
+      const key = toKey(cursor);
+      const e = entries[key];
+      if(e && e.status === 'logged'){
+        streak++;
+        cursor = addDays(cursor, -1);
+      } else {
+        break;
+      }
+    }
+    return streak;
+  }
+  function computeWeekSkips(entries){
+    const monday = getMonday(new Date());
+    let count = 0;
+    for(let i=0;i<7;i++){
+      const key = toKey(addDays(monday, i));
+      if(entries[key] && entries[key].status === 'skip') count++;
+    }
+    return count;
+  }
+  function todayStatus(entries){
+    const e = entries[todayKey()];
+    if(!e) return 'pending';
+    return e.status === 'skip' ? 'skip' : 'logged';
+  }
+
+  // ---------- rendering: auth ----------
+  function renderTodayPill(){
+    document.getElementById('todayPill').textContent = fmtNice(new Date()).toUpperCase();
+  }
+
+  function showAuthGate(){
+    document.getElementById('authGate').style.display = 'flex';
+    document.getElementById('appMain').style.display = 'none';
+    stopLiveSync();
+  }
+  function showAppMain(){
+    document.getElementById('authGate').style.display = 'none';
+    document.getElementById('appMain').style.display = 'block';
+    document.getElementById('sessionName').textContent = sessionUser;
+  }
+
+  async function doAuthSubmit(){
+    const diag = document.getElementById('diagLine');
+    if(diag) diag.textContent = 'button pressed, working…';
+    const nameInput = document.getElementById('authName');
+    const msg = document.getElementById('authMsg');
+    msg.textContent = '';
+    try{
+      const result = await attemptAuth(nameInput.value);
+      if(diag) diag.textContent = 'auth check done: ' + (result.ok ? 'ok' : 'rejected');
+      if(!result.ok){
+        msg.textContent = result.msg;
+        return;
+      }
+      await loginAs(result.name, result.isNew);
+    }catch(err){
+      msg.textContent = 'Something went wrong logging in: ' + (err && err.message ? err.message : String(err));
+    }
+  }
+
+  document.getElementById('authSubmitBtn').addEventListener('click', doAuthSubmit);
+  document.getElementById('authName').addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter'){
+      e.preventDefault();
+      doAuthSubmit();
+    }
+  });
+
+  document.getElementById('logoutBtn').addEventListener('click', ()=>{
+    stopLiveSync();
+    try{ localStorage.removeItem(SESSION_KEY); }catch(e){ /* non-critical */ }
+    sessionUser = null;
+    activePerson = null;
+    editingToday = false;
+    addingExercise = false;
+    selectedDayKey = null;
+    document.getElementById('authName').value = '';
+    document.getElementById('authMsg').textContent = '';
+    showAuthGate();
+  });
+
+  // ---------- rendering: main app ----------
+  function renderOverview(){
+    const el = document.getElementById('overview');
+    el.innerHTML = '';
+    peopleNames().forEach(person=>{
+      const entries = dataMap[person].entries;
+      const streak = computeStreak(entries);
+      const skips = computeWeekSkips(entries);
+      const status = todayStatus(entries);
+      const card = document.createElement('div');
+      card.className = 'mini-lane' + (person===activePerson ? ' active' : '');
+      card.style.setProperty('--lane-color', colorFor(person));
+      card.innerHTML = `
+        <div class="name"><span class="dot ${status}"></span>${escapeHTML(person)} ${person===sessionUser ? '<span class="you-tag">YOU</span>' : ''}</div>
+        <div class="stats">
+          <span>STREAK <b>${streak}</b></span>
+          <span>SKIPS <b>${skips}/2</b></span>
+        </div>`;
+      card.addEventListener('click', ()=>{ activePerson = person; editingToday=false; addingExercise=false; selectedDayKey=null; renderLanePanel(); renderOverview(); });
+      el.appendChild(card);
+    });
+  }
+
+  function dayCellClass(entries, key, isFuture){
+    if(isFuture) return 'st-future';
+    const e = entries[key];
+    if(e && e.status === 'logged') return 'st-logged';
+    if(e && e.status === 'skip') return 'st-skip';
+    if(key === todayKey()) return '';
+    return 'st-miss';
+  }
+  function dayCellMark(entries, key, isFuture){
+    if(isFuture) return '·';
+    const e = entries[key];
+    if(e && e.status === 'logged') return '✓';
+    if(e && e.status === 'skip') return '×';
+    if(key === todayKey()) return '…';
+    return '–';
+  }
+
+  function renderWeekStrip(entries){
+    const monday = getMonday(new Date());
+    const tKey = todayKey();
+    let html = '<div class="week-strip">';
+    for(let i=0;i<7;i++){
+      const d = addDays(monday, i);
+      const key = toKey(d);
+      const isFuture = key > tKey;
+      const isToday = key === tKey;
+      const isSelected = key === selectedDayKey;
+      html += `<div class="day-cell ${dayCellClass(entries,key,isFuture)} ${isToday?'today':''} ${isSelected?'date-selected':''}" data-date="${key}" title="Tap to see ${fmtKeyNice(key)}">
+        <span class="wd">${d.toLocaleDateString(undefined,{weekday:'short'}).slice(0,2).toUpperCase()}</span>
+        <span class="mk">${dayCellMark(entries,key,isFuture)}</span>
+      </div>`;
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function renderDayDetail(entries, key, exercises){
+    const e = entries[key];
+    let inner;
+    if(!e){
+      inner = `<div class="note-line">Nothing logged for this day.</div>`;
+    } else if(e.status === 'skip'){
+      inner = `
+        <div class="stamp warn">Skipped</div>
+        <div class="note-line" style="margin-top:10px;">${escapeHTML(e.excuse || 'No reason given.')}</div>`;
+    } else {
+      inner = `
+        <div class="stamp">Logged</div>
+        <div style="margin-top:12px;">${exerciseSummaryHTML(e, exercises)}</div>
+        ${e.note ? `<div class="note-line">Note: ${escapeHTML(e.note)}</div>` : ''}`;
+    }
+    return `
+      <div class="day-detail">
+        <div class="day-detail-head">
+          <span>${fmtKeyNice(key)}</span>
+          <button type="button" class="btn small ghost" id="closeDayDetailBtn">Close</button>
+        </div>
+        ${inner}
+      </div>`;
+  }
+
+  function exerciseSummaryHTML(entry, exercises){
+    return `<div class="exercise-pills">${exercises.map(ex=>{
+      const v = entry[ex.key];
+      return `<div class="exercise-pill"><span class="lab">${escapeHTML(ex.label)}</span><span class="val">${v? v.reps+' x '+v.sets : '—'}</span></div>`;
+    }).join('')}</div>`;
+  }
+
+  function renderExerciseManager(person, owner){
+    const exercises = dataMap[person].exercises;
+    if(!owner){
+      const chips = exercises.map(ex=>`<span class="ex-chip static">${escapeHTML(ex.label)}</span>`).join('');
+      return `
+        <div class="ex-manager">
+          <div class="ex-manager-label">${escapeHTML(person)}'s exercises</div>
+          <div class="ex-chip-row">${chips}</div>
+        </div>`;
+    }
+    const chips = exercises.map(ex=>`
+      <span class="ex-chip">${escapeHTML(ex.label)}
+        <button type="button" data-remove-key="${ex.key}" ${exercises.length<=1?'disabled title="Keep at least one"':''}>×</button>
+      </span>`).join('');
+    return `
+      <div class="ex-manager">
+        <div class="ex-manager-label">Your exercises &mdash; only you are held to these</div>
+        <div class="ex-chip-row">
+          ${chips}
+          <button type="button" class="btn small ghost" id="showAddExBtn">${addingExercise ? '− cancel' : '+ swap / add'}</button>
+        </div>
+        ${addingExercise ? `
+          <div id="addExInline" style="margin-top:10px;">
+            <div class="add-ex-row">
+              <input type="text" id="newExName" placeholder="e.g. Lunges">
+              <input type="number" id="newExMax" min="1" max="20" value="10" title="max sets">
+              <button type="button" class="btn small primary" id="addExBtn">Add for you</button>
+            </div>
+            <div class="add-ex-note" id="addExMsg">This only changes your log. Remove one above and add a replacement to swap it out.</div>
+          </div>` : ''}
+      </div>`;
+  }
+
+  function attachExerciseManagerHandlers(){
+    const showBtn = document.getElementById('showAddExBtn');
+    if(showBtn) showBtn.addEventListener('click', ()=>{ addingExercise = !addingExercise; renderLanePanel(); });
+
+    document.querySelectorAll('[data-remove-key]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        if(btn.disabled) return;
+        const key = btn.dataset.removeKey;
+        const result = await removeExerciseFor(activePerson, key);
+        if(result.ok){
+          showToast('Removed from your log.');
+          editingToday = false;
+          renderOverview();
+          renderLanePanel();
+          renderHistory();
+        }
+      });
+    });
+
+    const addBtn = document.getElementById('addExBtn');
+    if(addBtn) addBtn.addEventListener('click', async ()=>{
+      const nameInput = document.getElementById('newExName');
+      const maxInput = document.getElementById('newExMax');
+      const msg = document.getElementById('addExMsg');
+      const name = nameInput.value;
+      const result = await addExerciseFor(activePerson, name, maxInput.value);
+      if(!result.ok){
+        msg.textContent = result.msg;
+        msg.style.color = 'var(--warn)';
+        return;
+      }
+      showToast('Added "' + name.trim() + '" for you.');
+      addingExercise = false;
+      editingToday = false;
+      renderOverview();
+      renderLanePanel();
+      renderHistory();
+    });
+  }
+
+  function renderLanePanel(){
+    const panel = document.getElementById('lanePanel');
+    if(!activePerson || !dataMap[activePerson]) return;
+    panel.style.display = 'block';
+    panel.style.setProperty('--lane-color', colorFor(activePerson));
+    const state = dataMap[activePerson];
+    const entries = state.entries;
+    const exercises = state.exercises;
+    const tKey = todayKey();
+    const todayEntry = entries[tKey];
+    const skipsUsed = computeWeekSkips(entries);
+    const owner = isOwner();
+
+    let bodyHTML = '';
+    if(owner){
+      if(todayEntry && !editingToday){
+        if(todayEntry.status === 'logged'){
+          bodyHTML = `
+            <div class="stamp">Logged</div>
+            <div style="margin-top:12px;">${exerciseSummaryHTML(todayEntry, exercises)}</div>
+            ${todayEntry.note ? `<div class="note-line">Note: ${escapeHTML(todayEntry.note)}</div>` : ''}
+            <div class="form-actions"><button class="btn small" id="editBtn">Edit tonight's entry</button></div>`;
+        } else {
+          bodyHTML = `
+            <div class="stamp warn">Skipped</div>
+            <div class="note-line" style="margin-top:10px;">${escapeHTML(todayEntry.excuse || 'No reason given.')}</div>
+            <div class="form-actions"><button class="btn small" id="editBtn">Edit tonight's entry</button></div>`;
+        }
+      } else {
+        bodyHTML = renderForm(todayEntry, exercises);
+      }
+    } else {
+      if(todayEntry){
+        if(todayEntry.status === 'logged'){
+          bodyHTML = `
+            <div class="stamp">Logged</div>
+            <div style="margin-top:12px;">${exerciseSummaryHTML(todayEntry, exercises)}</div>
+            ${todayEntry.note ? `<div class="note-line">Note: ${escapeHTML(todayEntry.note)}</div>` : ''}`;
+        } else {
+          bodyHTML = `
+            <div class="stamp warn">Skipped</div>
+            <div class="note-line" style="margin-top:10px;">${escapeHTML(todayEntry.excuse || 'No reason given.')}</div>`;
+        }
+      } else {
+        bodyHTML = `<div class="note-line">No entry yet tonight.</div>`;
+      }
+    }
+
+    panel.innerHTML = `
+      <div class="lp-head">
+        <h3>${escapeHTML(activePerson)}</h3>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink-dim);">this week: skips ${skipsUsed}/2</span>
+      </div>
+      ${!owner ? `<div class="read-only-note">You're viewing ${escapeHTML(activePerson)}'s log — only they can log or edit it.</div>` : ''}
+      ${renderWeekStrip(entries)}
+      ${selectedDayKey ? renderDayDetail(entries, selectedDayKey, exercises) : ''}
+      ${renderExerciseManager(activePerson, owner)}
+      ${bodyHTML}
+    `;
+
+    if(owner){
+      const editBtn = document.getElementById('editBtn');
+      if(editBtn) editBtn.addEventListener('click', ()=>{ editingToday = true; renderLanePanel(); });
+      attachExerciseManagerHandlers();
+      attachFormHandlers(exercises);
+    }
+
+    panel.querySelectorAll('.day-cell[data-date]').forEach(cell=>{
+      cell.addEventListener('click', ()=>{
+        const key = cell.dataset.date;
+        selectedDayKey = (selectedDayKey === key) ? null : key;
+        renderLanePanel();
+      });
+    });
+
+    const closeBtn = document.getElementById('closeDayDetailBtn');
+    if(closeBtn) closeBtn.addEventListener('click', ()=>{
+      selectedDayKey = null;
+      renderLanePanel();
+    });
+  }
+
+  function renderForm(existing, exercises){
+    const skipChecked = existing && existing.status === 'skip';
+    const exVals = exercises.map(ex=>{
+      const v = existing && existing[ex.key] ? existing[ex.key] : {reps:'', sets:''};
+      return {...ex, ...v};
+    });
+    return `
+      <div class="entry-form" id="entryForm">
+        <div class="mode-toggle">
+          <button type="button" class="btn small ${!skipChecked?'toggle-active':''}" id="modeLogBtn">Log tonight</button>
+          <button type="button" class="btn small ${skipChecked?'toggle-active':''}" id="modeSkipBtn">Skip tonight</button>
+        </div>
+
+        <div id="logFields" style="display:${skipChecked?'none':'block'};">
+          <div class="ex-grid">
+            ${exVals.map(ex => `
+              <div class="ex-field">
+                <div class="title">${escapeHTML(ex.label)}</div>
+                <div class="row">
+                  <input type="number" min="1" placeholder="reps" data-ex="${ex.key}" data-field="reps" value="${ex.reps}">
+                  <span class="x">x</span>
+                  <input type="number" min="1" max="${ex.maxSets}" placeholder="sets" data-ex="${ex.key}" data-field="sets" value="${ex.sets}">
+                </div>
+                <div class="cap">max ${ex.maxSets} sets</div>
+              </div>
+            `).join('')}
+          </div>
+          <label class="field-label" for="noteInput">Note (optional — assist bands, tweak, etc.)</label>
+          <input type="text" id="noteInput" placeholder="e.g. used assist bands on pullups" value="${existing && existing.note ? escapeAttr(existing.note) : ''}">
+        </div>
+
+        <div id="skipFields" style="display:${skipChecked?'block':'none'};margin-top:4px;">
+          <label class="field-label" for="excuseInput">Excuse for skip</label>
+          <textarea id="excuseInput" rows="2" placeholder="what happened tonight?">${existing && existing.excuse ? escapeHTML(existing.excuse) : ''}</textarea>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn primary" id="saveEntryBtn">Save entry</button>
+          ${existing ? '<button type="button" class="btn ghost small" id="cancelEditBtn">Cancel</button>' : ''}
+          <span class="form-msg" id="formMsg"></span>
+        </div>
+      </div>
+    `;
+  }
+
+  let formMode = 'log'; // 'log' | 'skip'
+
+  function attachFormHandlers(exercises){
+    const form = document.getElementById('entryForm');
+    if(!form) return;
+    const state = dataMap[activePerson];
+    const entries = state.entries;
+    const existing = entries[todayKey()];
+    formMode = existing && existing.status === 'skip' ? 'skip' : 'log';
+
+    const logFields = document.getElementById('logFields');
+    const skipFields = document.getElementById('skipFields');
+    const logBtn = document.getElementById('modeLogBtn');
+    const skipBtn = document.getElementById('modeSkipBtn');
+
+    function setMode(mode){
+      formMode = mode;
+      logFields.style.display = mode==='log' ? 'block' : 'none';
+      skipFields.style.display = mode==='skip' ? 'block' : 'none';
+      logBtn.classList.toggle('toggle-active', mode==='log');
+      skipBtn.classList.toggle('toggle-active', mode==='skip');
+    }
+    logBtn.addEventListener('click', ()=> setMode('log'));
+    skipBtn.addEventListener('click', ()=> setMode('skip'));
+
+    const cancelBtn = document.getElementById('cancelEditBtn');
+    if(cancelBtn) cancelBtn.addEventListener('click', ()=>{ editingToday = false; renderLanePanel(); });
+
+    const saveBtn = document.getElementById('saveEntryBtn');
+    saveBtn.addEventListener('click', async ()=>{
+      const msg = document.getElementById('formMsg');
+      msg.textContent = '';
+
+      const skipsUsed = computeWeekSkips(entries);
+      const alreadySkippedToday = existing && existing.status === 'skip';
+
+      if(formMode === 'skip'){
+        const excuse = document.getElementById('excuseInput').value.trim();
+        if(!excuse){ msg.textContent = "Add a quick excuse — that's the deal."; return; }
+        if(skipsUsed >= 2 && !alreadySkippedToday){
+          msg.textContent = 'Skips maxed for this week (2/2) — try to get it in tonight.';
+          return;
+        }
+        entries[todayKey()] = { status:'skip', excuse, loggedAt: Date.now() };
+      } else {
+        const values = {};
+        let ok = true;
+        exercises.forEach(ex=>{
+          const repsInput = form.querySelector(`input[data-ex="${ex.key}"][data-field="reps"]`);
+          const setsInput = form.querySelector(`input[data-ex="${ex.key}"][data-field="sets"]`);
+          const reps = parseInt(repsInput.value, 10);
+          let sets = parseInt(setsInput.value, 10);
+          if(!reps || reps < 1 || !sets || sets < 1){ ok = false; }
+          if(sets > ex.maxSets) sets = ex.maxSets;
+          values[ex.key] = { reps, sets };
+        });
+        if(!ok){ msg.textContent = 'Fill in reps and sets for everything on your list.'; return; }
+        const note = document.getElementById('noteInput').value.trim();
+        const entry = { status:'logged', ...values, loggedAt: Date.now() };
+        if(note) entry.note = note;
+        entries[todayKey()] = entry;
+      }
+
+      try{
+        await savePerson(activePerson, state);
+        editingToday = false;
+        showToast('Saved. Stay on it, ' + activePerson + '.');
+        renderOverview();
+        renderLanePanel();
+        renderHistory();
+      }catch(err){
+        msg.textContent = 'Could not save — try again.';
+      }
+    });
+  }
+
+  function renderFilters(){
+    const el = document.getElementById('filters');
+    const options = ['All', ...peopleNames()];
+    el.innerHTML = options.map(o=>`<button class="btn small ${o===historyFilter?'active':''}" data-filter="${escapeAttr(o)}">${escapeHTML(o)}</button>`).join('');
+    el.querySelectorAll('button').forEach(btn=>{
+      btn.addEventListener('click', ()=>{ historyFilter = btn.dataset.filter; renderFilters(); renderHistory(); });
+    });
+  }
+
+  function unionExercises(){
+    const seen = [];
+    peopleNames().forEach(p=>{
+      dataMap[p].exercises.forEach(ex=>{
+        if(!seen.some(s=>s.key===ex.key)) seen.push(ex);
+      });
+    });
+    return seen;
+  }
+
+  function renderHistoryHead(cols){
+    const head = document.getElementById('historyHead');
+    const exCols = cols.map(ex=>`<th>${escapeHTML(ex.label)}</th>`).join('');
+    head.innerHTML = `<tr><th>Date</th><th>Who</th>${exCols}<th>Note / Excuse</th></tr>`;
+  }
+
+  function renderHistory(){
+    const cols = unionExercises();
+    renderHistoryHead(cols);
+    const body = document.getElementById('historyBody');
+    const totalCols = 3 + cols.length;
+    let rows = [];
+    peopleNames().forEach(person=>{
+      if(historyFilter !== 'All' && historyFilter !== person) return;
+      const entries = dataMap[person].entries;
+      Object.keys(entries).forEach(key=>{
+        if(dateFilter && key !== dateFilter) return;
+        rows.push({ date:key, person, entry:entries[key] });
+      });
+    });
+    rows.sort((a,b)=> b.date === a.date ? a.person.localeCompare(b.person) : (a.date < b.date ? 1 : -1));
+
+    if(rows.length === 0){
+      const emptyMsg = dateFilter
+        ? 'Nothing logged for ' + fmtKeyNice(dateFilter) + (historyFilter !== 'All' ? ' by ' + escapeHTML(historyFilter) : '') + '.'
+        : 'Nothing logged yet — first entry starts the streak.';
+      body.innerHTML = `<tr><td colspan="${totalCols}" class="empty-row">${emptyMsg}</td></tr>`;
+      return;
+    }
+
+    body.innerHTML = rows.map(r=>{
+      const e = r.entry;
+      const colorVar = colorFor(r.person);
+      const whoCell = `<td><span class="who-tag"><span class="sw" style="background:${colorVar}"></span>${escapeHTML(r.person)}</span></td>`;
+      if(e.status === 'skip'){
+        return `<tr>
+          <td>${fmtKeyNice(r.date)}</td>
+          ${whoCell}
+          <td colspan="${cols.length}"><span class="status-badge skip">Skip</span></td>
+          <td>${escapeHTML(e.excuse || '')}</td>
+        </tr>`;
+      }
+      const exCells = cols.map(ex=>{
+        const v = e[ex.key];
+        return `<td>${v ? v.reps+' x '+v.sets : '—'}</td>`;
+      }).join('');
+      return `<tr>
+        <td>${fmtKeyNice(r.date)}</td>
+        ${whoCell}
+        ${exCells}
+        <td>${e.note ? escapeHTML(e.note) : ''}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  function renderAll(){
+    renderOverview();
+    renderLanePanel();
+    renderFilters();
+    renderHistory();
+  }
+
+  function escapeHTML(str){
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+  function escapeAttr(str){
+    return String(str).replace(/"/g,'&quot;');
+  }
+  function showToast(text){
+    const t = document.getElementById('toast');
+    t.textContent = text;
+    t.classList.add('show');
+    setTimeout(()=> t.classList.remove('show'), 2200);
+  }
+
+  // rules collapse
+  document.getElementById('rulesToggle').addEventListener('click', ()=>{
+    document.getElementById('rulesBox').classList.toggle('open');
+  });
+
+  // date filter for the full log (static elements, wired once)
+  document.getElementById('dateFilter').addEventListener('change', (e)=>{
+    dateFilter = e.target.value || '';
+    document.getElementById('clearDateBtn').style.display = dateFilter ? 'inline-block' : 'none';
+    renderHistory();
+  });
+  document.getElementById('clearDateBtn').addEventListener('click', ()=>{
+    dateFilter = '';
+    document.getElementById('dateFilter').value = '';
+    document.getElementById('clearDateBtn').style.display = 'none';
+    renderHistory();
+  });
+
+  (async function init(){
+    try{
+      renderTodayPill();
+      const diag = document.getElementById('diagLine');
+      if(diag) diag.textContent = 'connecting…';
+
+      let savedUser = null;
+      try{ savedUser = localStorage.getItem(SESSION_KEY); }catch(e){ /* private browsing etc */ }
+
+      if(savedUser){
+        const acctSnap = await db.collection(ACCOUNTS_COL).doc(savedUser).get();
+        if(acctSnap.exists){
+          if(diag) diag.textContent = 'signed in as ' + savedUser + '.';
+          await loginAs(acctSnap.data().name, false);
+          return;
+        } else {
+          try{ localStorage.removeItem(SESSION_KEY); }catch(e){ /* non-critical */ }
+        }
+      }
+
+      const initialAccounts = await loadAllAccounts();
+      if(diag) diag.textContent = initialAccounts.length + ' account(s) on record. Ready.';
+      showAuthGate();
+    }catch(e){
+      showFatalError('init failed: ' + (e && e.message ? e.message : String(e)));
+    }
+  })();
+})();
+</script>
+</body>
+</html>
