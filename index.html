@@ -84,6 +84,16 @@
     margin-bottom:18px;font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--ink-dim);
   }
   .session-bar b{color:var(--ink);}
+  .session-actions{display:flex;gap:8px;align-items:center;}
+  .btn.danger{border-color:var(--warn);color:var(--warn);}
+  .btn.danger:hover{background:var(--warn-dim);}
+  .delete-confirm{
+    background:var(--surface);border:1px solid var(--warn);border-radius:var(--radius);
+    padding:14px 16px;margin-bottom:18px;
+  }
+  .delete-confirm p{margin:0 0 10px;font-size:13px;color:var(--ink);line-height:1.5;}
+  .delete-confirm .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  .delete-confirm input[type=text]{flex:1;min-width:160px;}
 
   /* ---------- Rules ---------- */
   .rules{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:22px;overflow:hidden;}
@@ -293,8 +303,13 @@
 
     <div class="session-bar">
       <span>Logged in as <b id="sessionName"></b></span>
-      <button type="button" class="btn small ghost" id="logoutBtn">Log out</button>
+      <div class="session-actions">
+        <button type="button" class="btn small ghost danger" id="deleteAccountBtn">Delete account</button>
+        <button type="button" class="btn small ghost" id="logoutBtn">Log out</button>
+      </div>
     </div>
+
+    <div id="deleteConfirmArea"></div>
 
     <div class="rules" id="rulesBox">
       <div class="rules-head" id="rulesToggle">
@@ -540,6 +555,8 @@
     activePerson = name;
     try{ localStorage.setItem(SESSION_KEY, name); }catch(e){ /* private browsing etc — non-critical */ }
     showAppMain();
+    const confirmEl = document.getElementById('deleteConfirmArea');
+    if(confirmEl) confirmEl.innerHTML = '';
     await primeData();
     renderAll();
     startLiveSync();
@@ -674,7 +691,67 @@
     selectedDayKey = null;
     document.getElementById('authName').value = '';
     document.getElementById('authMsg').textContent = '';
+    const confirmEl = document.getElementById('deleteConfirmArea');
+    if(confirmEl) confirmEl.innerHTML = '';
     showAuthGate();
+  });
+
+  async function deleteAccount(name){
+    await db.collection(ACCOUNTS_COL).doc(name).delete();
+    await db.collection(LOGS_COL).doc(name).delete();
+  }
+
+  function renderDeleteConfirm(){
+    const el = document.getElementById('deleteConfirmArea');
+    if(!el) return;
+    el.innerHTML = `
+      <div class="delete-confirm">
+        <p>This permanently deletes <b>${escapeHTML(sessionUser)}</b>'s account and every logged entry &mdash; there's no undo. Type <b>DELETE</b> below to confirm.</p>
+        <div class="row">
+          <input type="text" id="deleteConfirmInput" placeholder="Type DELETE" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+          <button type="button" class="btn small danger" id="confirmDeleteBtn" disabled>Permanently delete</button>
+          <button type="button" class="btn small ghost" id="cancelDeleteBtn">Cancel</button>
+          <span class="form-msg" id="deleteMsg"></span>
+        </div>
+      </div>`;
+
+    const input = document.getElementById('deleteConfirmInput');
+    const confirmBtn = document.getElementById('confirmDeleteBtn');
+    input.addEventListener('input', ()=>{
+      confirmBtn.disabled = input.value.trim() !== 'DELETE';
+    });
+    document.getElementById('cancelDeleteBtn').addEventListener('click', ()=>{
+      el.innerHTML = '';
+    });
+    confirmBtn.addEventListener('click', async ()=>{
+      const msg = document.getElementById('deleteMsg');
+      msg.textContent = '';
+      const nameToDelete = sessionUser;
+      try{
+        await deleteAccount(nameToDelete);
+      }catch(e){
+        msg.textContent = 'Could not delete: ' + (e && e.message ? e.message : String(e));
+        return;
+      }
+      el.innerHTML = '';
+      stopLiveSync();
+      try{ localStorage.removeItem(SESSION_KEY); }catch(e){ /* non-critical */ }
+      sessionUser = null;
+      activePerson = null;
+      editingToday = false;
+      addingExercise = false;
+      selectedDayKey = null;
+      document.getElementById('authName').value = '';
+      document.getElementById('authMsg').textContent = '';
+      showAuthGate();
+      showToast('"' + nameToDelete + '" was deleted.');
+    });
+  }
+
+  document.getElementById('deleteAccountBtn').addEventListener('click', ()=>{
+    const el = document.getElementById('deleteConfirmArea');
+    if(el.innerHTML.trim()){ el.innerHTML = ''; }
+    else{ renderDeleteConfirm(); }
   });
 
   // ---------- rendering: main app ----------
