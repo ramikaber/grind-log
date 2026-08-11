@@ -279,7 +279,7 @@
       <div id="authForm">
         <div class="auth-field">
           <label class="field-label" for="authName">Name</label>
-          <input type="text" id="authName" placeholder="Your name" autocomplete="off">
+          <input type="text" id="authName" placeholder="Your name" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
         </div>
         <button type="button" class="btn primary full" id="authSubmitBtn">Enter</button>
         <div class="auth-msg" id="authMsg"></div>
@@ -449,6 +449,15 @@
       const existingSnap = await db.collection(ACCOUNTS_COL).doc(label).get();
       if(existingSnap.exists){
         return {ok:true, name: existingSnap.data().name, isNew:false};
+      }
+
+      // No exact match — but if a same-name-different-case account already
+      // exists, don't silently spawn a confusing duplicate. This is what
+      // used to happen when a phone auto-capitalized what someone typed.
+      const allAccounts = accounts.length ? accounts : await loadAllAccounts();
+      const nearMatch = allAccounts.find(a => a.name.toLowerCase() === label.toLowerCase());
+      if(nearMatch){
+        return {ok:false, msg: '"' + nearMatch.name + '" is already on file (capitalization matters). Type it exactly — including capital letters — to log into that account, or use a clearly different name to start a new one.'};
       }
 
       const account = { name: label, color: nextColor(), createdAt: Date.now() };
